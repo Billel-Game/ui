@@ -73,43 +73,43 @@ function SleekUILib:CreateWindow(title)
     self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
     self.UIList.Padding = UDim.new(0, 12)
 
-local dragging = false
-local dragInput, dragStart, startPos
+    -- Dragging code fix
+    local dragging = false
+    local dragInput, dragStart, startPos
 
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = self.Frame.Position
 
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
 
-titleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
+    self.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
 
-UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        local newX = startPos.X.Offset + delta.X
-        local newY = startPos.Y.Offset + delta.Y
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
 
-        local screenSize = workspace.CurrentCamera.ViewportSize
-        newX = math.clamp(newX, 0, screenSize.X - frame.AbsoluteSize.X)
-        newY = math.clamp(newY, 0, screenSize.Y - frame.AbsoluteSize.Y)
+            local screenSize = workspace.CurrentCamera.ViewportSize
+            newX = math.clamp(newX, 0, screenSize.X - self.Frame.AbsoluteSize.X)
+            newY = math.clamp(newY, 0, screenSize.Y - self.Frame.AbsoluteSize.Y)
 
-        frame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
-    end
-end)
-
+            self.Frame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+        end
+    end)
 
     -- Resize handle
     self.ResizeCorner = Instance.new("Frame")
