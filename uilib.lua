@@ -1,98 +1,220 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local UILib = {}
+local SleekUILib = {}
+SleekUILib.__index = SleekUILib
 
-function UILib:Create()
-    local LocalPlayer = Players.LocalPlayer
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "CustomUILib"
-    gui.ResetOnSpawn = false
-    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Helper to create draggable and resizable window
+function SleekUILib:CreateWindow(title)
+    local self = setmetatable({}, SleekUILib)
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 400, 0, 300)
-    frame.Position = UDim2.new(0.5, -200, 0.5, -150)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    frame.BorderSizePixel = 0
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.Name = "MainWindow"
-    frame.Parent = gui
-    frame.Active = true
-    frame.Draggable = true
+    -- Create ScreenGui
+    self.Gui = Instance.new("ScreenGui")
+    self.Gui.Name = "SleekUI"
+    self.Gui.ResetOnSpawn = false
+    self.Gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.FillDirection = Enum.FillDirection.Vertical
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = frame
+    -- Main frame
+    self.Frame = Instance.new("Frame")
+    self.Frame.Size = UDim2.new(0, 450, 0, 300)
+    self.Frame.Position = UDim2.new(0.5, -225, 0.5, -150)
+    self.Frame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
+    self.Frame.BorderSizePixel = 0
+    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.Frame.Parent = self.Gui
 
-    local padding = Instance.new("UIPadding")
-    padding.PaddingTop = UDim.new(0, 10)
-    padding.PaddingBottom = UDim.new(0, 10)
-    padding.PaddingLeft = UDim.new(0, 10)
-    padding.PaddingRight = UDim.new(0, 10)
-    padding.Parent = frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(85, 170, 255)
+    stroke.Thickness = 2
+    stroke.Parent = self.Frame
 
-    local function CreateButton(text, callback)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -20, 0, 40)
-        button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        button.Font = Enum.Font.GothamBold
-        button.TextSize = 16
-        button.Text = text
-        button.AutoButtonColor = true
-        button.Parent = frame
+    -- Title bar
+    self.TitleBar = Instance.new("Frame")
+    self.TitleBar.Size = UDim2.new(1, 0, 0, 36)
+    self.TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
+    self.TitleBar.Parent = self.Frame
 
-        button.MouseButton1Click:Connect(callback)
-        return button
+    -- Title label
+    self.TitleLabel = Instance.new("TextLabel")
+    self.TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+    self.TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+    self.TitleLabel.BackgroundTransparency = 1
+    self.TitleLabel.Text = title or "Sleek UI"
+    self.TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    self.TitleLabel.Font = Enum.Font.GothamBold
+    self.TitleLabel.TextSize = 20
+    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    self.TitleLabel.Parent = self.TitleBar
+
+    -- Close button
+    self.CloseBtn = Instance.new("TextButton")
+    self.CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+    self.CloseBtn.Position = UDim2.new(1, -40, 0, 3)
+    self.CloseBtn.BackgroundColor3 = Color3.fromRGB(170, 40, 40)
+    self.CloseBtn.Text = "✕"
+    self.CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    self.CloseBtn.Font = Enum.Font.GothamBold
+    self.CloseBtn.TextSize = 20
+    self.CloseBtn.Parent = self.TitleBar
+
+    self.CloseBtn.MouseButton1Click:Connect(function()
+        self:Destroy()
+    end)
+
+    -- Content container
+    self.Content = Instance.new("Frame")
+    self.Content.Size = UDim2.new(1, -20, 1, -60)
+    self.Content.Position = UDim2.new(0, 10, 0, 45)
+    self.Content.BackgroundTransparency = 1
+    self.Content.Parent = self.Frame
+
+    self.UIList = Instance.new("UIListLayout")
+    self.UIList.Parent = self.Content
+    self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
+    self.UIList.Padding = UDim.new(0, 12)
+
+    -- Dragging vars
+    local dragging, dragInput, dragStart, startPos
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - self.Frame.AbsoluteSize.X)
+        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - self.Frame.AbsoluteSize.Y)
+        self.Frame.Position = UDim2.new(0, newX, 0, newY)
     end
 
-    local function CreateToggle(text, default, callback)
-        local value = default
-        local toggle = Instance.new("TextButton")
-        toggle.Size = UDim2.new(1, -20, 0, 40)
-        toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-        toggle.Font = Enum.Font.Gotham
-        toggle.TextSize = 16
-        toggle.Text = text .. ": OFF"
-        toggle.AutoButtonColor = true
-        toggle.Parent = frame
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = self.Frame.Position
 
-        toggle.MouseButton1Click:Connect(function()
-            value = not value
-            toggle.Text = text .. ": " .. (value and "ON" or "OFF")
-            callback(value)
-        end)
-
-        return toggle
-    end
-
-    -- Autofarm toggle logic
-    local connection
-    CreateToggle("Auto-Farm", false, function(enabled)
-        if enabled then
-            connection = RunService.Heartbeat:Connect(function()
-                local MineCoinEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("MineCoin")
-                MineCoinEvent:FireServer()
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
             end)
-        else
-            if connection then
-                connection:Disconnect()
-                connection = nil
-            end
         end
     end)
 
-    -- Unload button
-    CreateButton("Unload UI", function()
-        gui:Destroy()
+    self.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
     end)
+
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+
+    -- Resize handle
+    self.ResizeCorner = Instance.new("Frame")
+    self.ResizeCorner.Size = UDim2.new(0, 20, 0, 20)
+    self.ResizeCorner.Position = UDim2.new(1, -20, 1, -20)
+    self.ResizeCorner.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+    self.ResizeCorner.BorderSizePixel = 0
+    self.ResizeCorner.AnchorPoint = Vector2.new(0, 0)
+    self.ResizeCorner.Parent = self.Frame
+
+    local resizing = false
+    local mouseStartPos, frameStartSize
+
+    self.ResizeCorner.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            resizing = true
+            mouseStartPos = input.Position
+            frameStartSize = self.Frame.Size
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    resizing = false
+                end
+            end)
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and resizing then
+            local delta = input.Position - mouseStartPos
+            local newWidth = math.clamp(frameStartSize.X.Offset + delta.X, 300, workspace.CurrentCamera.ViewportSize.X)
+            local newHeight = math.clamp(frameStartSize.Y.Offset + delta.Y, 200, workspace.CurrentCamera.ViewportSize.Y)
+
+            self.Frame.Size = UDim2.new(0, newWidth, 0, newHeight)
+            self.Content.Size = UDim2.new(1, -20, 1, -60)
+        end
+    end)
+
+    return self
 end
 
-return UILib
+function SleekUILib:AddButton(text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    btn.TextColor3 = Color3.fromRGB(230, 230, 230)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 18
+    btn.Text = text
+    btn.AutoButtonColor = true
+    btn.Parent = self.Content
+
+    btn.MouseButton1Click:Connect(callback)
+
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    end)
+
+    return btn
+end
+
+function SleekUILib:AddToggle(text, default, callback)
+    local frameToggle = Instance.new("Frame")
+    frameToggle.Size = UDim2.new(1, 0, 0, 40)
+    frameToggle.BackgroundTransparency = 1
+    frameToggle.Parent = self.Content
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 18
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frameToggle
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 60, 0, 30)
+    toggleBtn.Position = UDim2.new(1, -65, 0, 5)
+    toggleBtn.BackgroundColor3 = default and Color3.fromRGB(85, 170, 255) or Color3.fromRGB(70, 70, 70)
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 16
+    toggleBtn.Text = default and "ON" or "OFF"
+    toggleBtn.Parent = frameToggle
+
+    local state = default
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        state = not state
+        toggleBtn.BackgroundColor3 = state and Color3.fromRGB(85, 170, 255) or Color3.fromRGB(70, 70, 70)
+        toggleBtn.Text = state and "ON" or "OFF"
+        callback(state)
+    end)
+
+    return frameToggle
+end
+
+function SleekUILib:Destroy()
+    if self.Gui then
+        self.Gui:Destroy()
+        self.Gui = nil
+    end
+end
+
+return SleekUILib
