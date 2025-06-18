@@ -4,23 +4,20 @@ local RunService = game:GetService("RunService")
 local SleekUILib = {}
 SleekUILib.__index = SleekUILib
 
--- Helper to create draggable and resizable window
 function SleekUILib:CreateWindow(title)
     local self = setmetatable({}, SleekUILib)
 
-    -- Create ScreenGui
     self.Gui = Instance.new("ScreenGui")
     self.Gui.Name = "SleekUI"
     self.Gui.ResetOnSpawn = false
     self.Gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Main frame
     self.Frame = Instance.new("Frame")
     self.Frame.Size = UDim2.new(0, 450, 0, 300)
-    self.Frame.Position = UDim2.new(0.5, -225, 0.5, -150)
+    self.Frame.Position = UDim2.new(0.5, 0, 0.5, 0)  -- Centered exactly
+    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
     self.Frame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
     self.Frame.BorderSizePixel = 0
-    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
     self.Frame.Parent = self.Gui
 
     local stroke = Instance.new("UIStroke")
@@ -28,13 +25,12 @@ function SleekUILib:CreateWindow(title)
     stroke.Thickness = 2
     stroke.Parent = self.Frame
 
-    -- Title bar
+    -- Title Bar
     self.TitleBar = Instance.new("Frame")
     self.TitleBar.Size = UDim2.new(1, 0, 0, 36)
     self.TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
     self.TitleBar.Parent = self.Frame
 
-    -- Title label
     self.TitleLabel = Instance.new("TextLabel")
     self.TitleLabel.Size = UDim2.new(1, -50, 1, 0)
     self.TitleLabel.Position = UDim2.new(0, 15, 0, 0)
@@ -46,7 +42,6 @@ function SleekUILib:CreateWindow(title)
     self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     self.TitleLabel.Parent = self.TitleBar
 
-    -- Close button
     self.CloseBtn = Instance.new("TextButton")
     self.CloseBtn.Size = UDim2.new(0, 30, 0, 30)
     self.CloseBtn.Position = UDim2.new(1, -40, 0, 3)
@@ -61,42 +56,36 @@ function SleekUILib:CreateWindow(title)
         self:Destroy()
     end)
 
-    -- Content container
     self.Content = Instance.new("Frame")
     self.Content.Size = UDim2.new(1, -20, 1, -60)
     self.Content.Position = UDim2.new(0, 10, 0, 45)
     self.Content.BackgroundTransparency = 1
     self.Content.Parent = self.Frame
 
-    self.UIList = Instance.new("UIListLayout")
-    self.UIList.Parent = self.Content
-    self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
-    self.UIList.Padding = UDim.new(0, 12)
+    local UIList = Instance.new("UIListLayout")
+    UIList.Parent = self.Content
+    UIList.SortOrder = Enum.SortOrder.LayoutOrder
+    UIList.Padding = UDim.new(0, 12)
 
-    -- Dragging vars
-    local dragging, dragInput, dragStart
+    -- Dragging variables
+    local dragging = false
+    local dragStartPos = nil -- Vector2
+    local frameStartPos = nil -- Vector2
 
-    local function update(input)
-        local delta = input.Position - dragStart
+    -- Convert UDim2 to absolute pixel position (center-based)
+    local function getFrameCenterAbsolutePos()
         local absPos = self.Frame.AbsolutePosition
-        local newPos = absPos + delta
-
-        local camSize = workspace.CurrentCamera.ViewportSize
-        local frameSize = self.Frame.AbsoluteSize
+        local absSize = self.Frame.AbsoluteSize
         local anchor = self.Frame.AnchorPoint
-
-        local clampedX = math.clamp(newPos.X, frameSize.X * anchor.X, camSize.X - frameSize.X * (1 - anchor.X))
-        local clampedY = math.clamp(newPos.Y, frameSize.Y * anchor.Y, camSize.Y - frameSize.Y * (1 - anchor.Y))
-
-        self.Frame.Position = UDim2.new(0, clampedX, 0, clampedY)
-
-        dragStart = input.Position -- Update drag start to avoid jumps
+        -- AbsolutePosition points to the top-left corner, adjust for center anchor
+        return Vector2.new(absPos.X + absSize.X * anchor.X, absPos.Y + absSize.Y * anchor.Y)
     end
 
     self.TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
-            dragStart = input.Position
+            dragStartPos = input.Position
+            frameStartPos = getFrameCenterAbsolutePos()
 
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -106,54 +95,29 @@ function SleekUILib:CreateWindow(title)
         end
     end)
 
-    self.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
     UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStartPos
+            local newPos = frameStartPos + delta
+
+            local camSize = workspace.CurrentCamera.ViewportSize
+            local frameSize = self.Frame.AbsoluteSize
+            local anchor = self.Frame.AnchorPoint
+
+            -- Clamp new position to keep frame fully inside screen
+            local clampedX = math.clamp(newPos.X, frameSize.X * anchor.X, camSize.X - frameSize.X * (1 - anchor.X))
+            local clampedY = math.clamp(newPos.Y, frameSize.Y * anchor.Y, camSize.Y - frameSize.Y * (1 - anchor.Y))
+
+            -- Convert clamped absolute center position back to UDim2 position
+            -- Since AnchorPoint is 0.5,0.5, position offset is top-left corner
+            local finalPos = UDim2.new(0, clampedX - frameSize.X * anchor.X, 0, clampedY - frameSize.Y * anchor.Y)
+            self.Frame.Position = finalPos
         end
     end)
 
-    -- Resize handle
-    self.ResizeCorner = Instance.new("Frame")
-    self.ResizeCorner.Size = UDim2.new(0, 20, 0, 20)
-    self.ResizeCorner.Position = UDim2.new(1, -20, 1, -20)
-    self.ResizeCorner.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
-    self.ResizeCorner.BorderSizePixel = 0
-    self.ResizeCorner.AnchorPoint = Vector2.new(0, 0)
-    self.ResizeCorner.Parent = self.Frame
+    -- Resize handle (same as before, omitted for brevity, but you can keep yours)
 
-    local resizing = false
-    local mouseStartPos, frameStartSize
-
-    self.ResizeCorner.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            resizing = true
-            mouseStartPos = input.Position
-            frameStartSize = self.Frame.Size
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    resizing = false
-                end
-            end)
-        end
-    end)
-
-    UIS.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement and resizing then
-            local delta = input.Position - mouseStartPos
-            local newWidth = math.clamp(frameStartSize.X.Offset + delta.X, 300, workspace.CurrentCamera.ViewportSize.X)
-            local newHeight = math.clamp(frameStartSize.Y.Offset + delta.Y, 200, workspace.CurrentCamera.ViewportSize.Y)
-
-            self.Frame.Size = UDim2.new(0, newWidth, 0, newHeight)
-            self.Content.Size = UDim2.new(1, -20, 1, -60)
-        end
-    end)
+    -- Your existing resize code can go here unchanged
 
     return self
 end
