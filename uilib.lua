@@ -73,21 +73,50 @@ function SleekUILib:CreateWindow(title)
     self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
     self.UIList.Padding = UDim.new(0, 12)
 
-   local function update(input)
-    local delta = input.Position - dragStart
-    local absPos = self.Frame.AbsolutePosition
-    local newPos = absPos + delta
+    -- Dragging vars
+    local dragging, dragInput, dragStart
 
-    local camSize = workspace.CurrentCamera.ViewportSize
-    local frameSize = self.Frame.AbsoluteSize
+    local function update(input)
+        local delta = input.Position - dragStart
+        local absPos = self.Frame.AbsolutePosition
+        local newPos = absPos + delta
 
-    local clampedX = math.clamp(newPos.X, frameSize.X * self.Frame.AnchorPoint.X, camSize.X - frameSize.X * (1 - self.Frame.AnchorPoint.X))
-    local clampedY = math.clamp(newPos.Y, frameSize.Y * self.Frame.AnchorPoint.Y, camSize.Y - frameSize.Y * (1 - self.Frame.AnchorPoint.Y))
+        local camSize = workspace.CurrentCamera.ViewportSize
+        local frameSize = self.Frame.AbsoluteSize
+        local anchor = self.Frame.AnchorPoint
 
-    self.Frame.Position = UDim2.new(0, clampedX, 0, clampedY)
-    
-    dragStart = input.Position -- update drag start to prevent jump
-end
+        local clampedX = math.clamp(newPos.X, frameSize.X * anchor.X, camSize.X - frameSize.X * (1 - anchor.X))
+        local clampedY = math.clamp(newPos.Y, frameSize.Y * anchor.Y, camSize.Y - frameSize.Y * (1 - anchor.Y))
+
+        self.Frame.Position = UDim2.new(0, clampedX, 0, clampedY)
+
+        dragStart = input.Position -- Update drag start to avoid jumps
+    end
+
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    self.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
 
     -- Resize handle
     self.ResizeCorner = Instance.new("Frame")
