@@ -4,20 +4,23 @@ local RunService = game:GetService("RunService")
 local SleekUILib = {}
 SleekUILib.__index = SleekUILib
 
+-- Helper to create draggable and resizable window
 function SleekUILib:CreateWindow(title)
     local self = setmetatable({}, SleekUILib)
 
+    -- Create ScreenGui
     self.Gui = Instance.new("ScreenGui")
     self.Gui.Name = "SleekUI"
     self.Gui.ResetOnSpawn = false
     self.Gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
+    -- Main frame
     self.Frame = Instance.new("Frame")
     self.Frame.Size = UDim2.new(0, 450, 0, 300)
-    self.Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.Frame.Position = UDim2.new(0.5, -225, 0.5, -150)
     self.Frame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
     self.Frame.BorderSizePixel = 0
+    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
     self.Frame.Parent = self.Gui
 
     local stroke = Instance.new("UIStroke")
@@ -25,11 +28,13 @@ function SleekUILib:CreateWindow(title)
     stroke.Thickness = 2
     stroke.Parent = self.Frame
 
+    -- Title bar
     self.TitleBar = Instance.new("Frame")
     self.TitleBar.Size = UDim2.new(1, 0, 0, 36)
     self.TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
     self.TitleBar.Parent = self.Frame
 
+    -- Title label
     self.TitleLabel = Instance.new("TextLabel")
     self.TitleLabel.Size = UDim2.new(1, -50, 1, 0)
     self.TitleLabel.Position = UDim2.new(0, 15, 0, 0)
@@ -41,6 +46,7 @@ function SleekUILib:CreateWindow(title)
     self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     self.TitleLabel.Parent = self.TitleBar
 
+    -- Close button
     self.CloseBtn = Instance.new("TextButton")
     self.CloseBtn.Size = UDim2.new(0, 30, 0, 30)
     self.CloseBtn.Position = UDim2.new(1, -40, 0, 3)
@@ -55,34 +61,33 @@ function SleekUILib:CreateWindow(title)
         self:Destroy()
     end)
 
+    -- Content container
     self.Content = Instance.new("Frame")
     self.Content.Size = UDim2.new(1, -20, 1, -60)
     self.Content.Position = UDim2.new(0, 10, 0, 45)
     self.Content.BackgroundTransparency = 1
     self.Content.Parent = self.Frame
 
-    local UIList = Instance.new("UIListLayout")
-    UIList.Parent = self.Content
-    UIList.SortOrder = Enum.SortOrder.LayoutOrder
-    UIList.Padding = UDim.new(0, 12)
+    self.UIList = Instance.new("UIListLayout")
+    self.UIList.Parent = self.Content
+    self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
+    self.UIList.Padding = UDim.new(0, 12)
 
     -- Dragging vars
-    local dragging = false
-    local dragStartPos = nil
-    local frameStartPos = nil
+    local dragging, dragInput, dragStart, startPos
 
-    local function getFrameCenterAbsolutePos()
-        local absPos = self.Frame.AbsolutePosition
-        local absSize = self.Frame.AbsoluteSize
-        local anchor = self.Frame.AnchorPoint
-        return Vector2.new(absPos.X + absSize.X * anchor.X, absPos.Y + absSize.Y * anchor.Y)
+    local function update(input)
+        local delta = input.Position - dragStart
+        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - self.Frame.AbsoluteSize.X)
+        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - self.Frame.AbsoluteSize.Y)
+        self.Frame.Position = UDim2.new(0, newX, 0, newY)
     end
 
     self.TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
-            dragStartPos = input.Position
-            frameStartPos = getFrameCenterAbsolutePos()
+            dragStart = input.Position
+            startPos = self.Frame.Position
 
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -92,20 +97,15 @@ function SleekUILib:CreateWindow(title)
         end
     end)
 
+    self.TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
     UIS.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStartPos
-            local newPos = frameStartPos + delta
-
-            local camSize = workspace.CurrentCamera.ViewportSize
-            local frameSize = self.Frame.AbsoluteSize
-            local anchor = self.Frame.AnchorPoint
-
-            local clampedX = math.clamp(newPos.X, frameSize.X * anchor.X, camSize.X - frameSize.X * (1 - anchor.X))
-            local clampedY = math.clamp(newPos.Y, frameSize.Y * anchor.Y, camSize.Y - frameSize.Y * (1 - anchor.Y))
-
-            local finalPos = UDim2.new(0, clampedX - frameSize.X * anchor.X, 0, clampedY - frameSize.Y * anchor.Y)
-            self.Frame.Position = finalPos
+        if input == dragInput and dragging then
+            update(input)
         end
     end)
 
