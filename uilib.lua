@@ -76,7 +76,7 @@ function SleekUILib:CreateWindow(title)
     -- Dragging vars
     local dragging, dragInput, dragStart, startPos
 
- local function update(input)
+local function update(input)
     local delta = input.Position - dragStart
     local newX = startPos.X.Offset + delta.X
     local newY = startPos.Y.Offset + delta.Y
@@ -88,7 +88,6 @@ function SleekUILib:CreateWindow(title)
 
     frame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
 end
-
 
     self.TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
