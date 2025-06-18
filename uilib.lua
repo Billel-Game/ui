@@ -73,41 +73,21 @@ function SleekUILib:CreateWindow(title)
     self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
     self.UIList.Padding = UDim.new(0, 12)
 
-    -- Dragging vars
-    local dragging, dragInput, dragStart, startPos
+   local function update(input)
+    local delta = input.Position - dragStart
+    local absPos = self.Frame.AbsolutePosition
+    local newPos = absPos + delta
 
-    local function update(input)
-        local delta = input.Position - dragStart
-        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - self.Frame.AbsoluteSize.X)
-        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - self.Frame.AbsoluteSize.Y)
-        self.Frame.Position = UDim2.new(0, newX, 0, newY)
-    end
+    local camSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = self.Frame.AbsoluteSize
 
-    self.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.Frame.Position
+    local clampedX = math.clamp(newPos.X, frameSize.X * self.Frame.AnchorPoint.X, camSize.X - frameSize.X * (1 - self.Frame.AnchorPoint.X))
+    local clampedY = math.clamp(newPos.Y, frameSize.Y * self.Frame.AnchorPoint.Y, camSize.Y - frameSize.Y * (1 - self.Frame.AnchorPoint.Y))
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    self.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
+    self.Frame.Position = UDim2.new(0, clampedX, 0, clampedY)
+    
+    dragStart = input.Position -- update drag start to prevent jump
+end
 
     -- Resize handle
     self.ResizeCorner = Instance.new("Frame")
