@@ -73,41 +73,52 @@ function SleekUILib:CreateWindow(title)
     self.UIList.SortOrder = Enum.SortOrder.LayoutOrder
     self.UIList.Padding = UDim.new(0, 12)
 
-    -- Dragging vars
-    local dragging, dragInput, dragStart, startPos
+  local function MakeDraggable(topbarobject, object)
+	local Dragging = false
+	local DragInput = nil
+	local DragStart = nil
+	local StartPosition = nil
 
-    local function update(input)
-        local delta = input.Position - dragStart
-        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - self.Frame.AbsoluteSize.X)
-        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - self.Frame.AbsoluteSize.Y)
-        self.Frame.Position = UDim2.new(0, newX, 0, newY)
-    end
+	local function Update(input)
+		local Delta = input.Position - DragStart
+		local pos = UDim2.new(
+			StartPosition.X.Scale,
+			StartPosition.X.Offset + Delta.X,
+			StartPosition.Y.Scale,
+			StartPosition.Y.Offset + Delta.Y
+		)
+		object.Position = pos
+	end
 
-    self.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.Frame.Position
+	topbarobject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			Dragging = true
+			DragStart = input.Position
+			StartPosition = object.Position
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					Dragging = false
+				end
+			end)
+		end
+	end)
 
-    self.TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
+	topbarobject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			DragInput = input
+		end
+	end)
 
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
+	UIS.InputChanged:Connect(function(input)
+		if input == DragInput and Dragging then
+			Update(input)
+		end
+	end)
+end
+
+function SleekUILib:CreateWindow(title)
+	local self = setmetatable({}, SleekUILib)
 
     -- Resize handle
     self.ResizeCorner = Instance.new("Frame")
