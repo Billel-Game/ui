@@ -76,12 +76,19 @@ function SleekUILib:CreateWindow(title)
     -- Dragging vars
     local dragging, dragInput, dragStart, startPos
 
-    local function update(input)
-        local delta = input.Position - dragStart
-        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - self.Frame.AbsoluteSize.X)
-        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - self.Frame.AbsoluteSize.Y)
-        self.Frame.Position = UDim2.new(0, newX, 0, newY)
-    end
+ local function update(input)
+    local delta = input.Position - dragStart
+    local newX = startPos.X.Offset + delta.X
+    local newY = startPos.Y.Offset + delta.Y
+
+    -- Optional: clamp so window stays inside screen
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    newX = math.clamp(newX, 0, screenSize.X - frame.AbsoluteSize.X)
+    newY = math.clamp(newY, 0, screenSize.Y - frame.AbsoluteSize.Y)
+
+    frame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+end
+
 
     self.TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
