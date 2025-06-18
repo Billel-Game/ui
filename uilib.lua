@@ -11,9 +11,12 @@ local function MakeDraggable(topbarObject, targetObject)
 
 	local function update(input)
 		local delta = input.Position - dragStart
-		local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - targetObject.AbsoluteSize.X)
-		local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - targetObject.AbsoluteSize.Y)
-		targetObject.Position = UDim2.new(0, newX, 0, newY)
+		targetObject.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
 	end
 
 	topbarObject.InputBegan:Connect(function(input)
@@ -42,6 +45,7 @@ local function MakeDraggable(topbarObject, targetObject)
 		end
 	end)
 end
+
 
 -- 🪟 Window creation
 function SleekUILib:CreateWindow(title)
